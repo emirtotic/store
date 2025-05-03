@@ -78,7 +78,7 @@ pub async fn update_item(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let existing = match existing {
+    let _existing = match existing {
         Some(item) => item,
         None => {
             tracing::warn!("Item {} not found for update", id);
@@ -188,7 +188,7 @@ pub async fn delete_item(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    let existing = match existing {
+    let _existing = match existing {
         Some(item) => item,
         None => {
             tracing::warn!("Item {} not found for update", id);

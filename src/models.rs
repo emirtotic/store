@@ -41,3 +41,37 @@ pub struct UpdateItem {
     pub quantity: Option<i32>,
     pub category_id: Option<i64>,
 }
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct User {
+    pub id: i64,
+    pub username: String,
+    pub password_hash: String,
+    pub role_id: i64,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct Role {
+    pub id: i64,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RegisterUser {
+    pub username: String,
+    pub password: String,
+    pub role: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UserResponse {
+    pub id: i64,
+    pub username: String,
+    pub role_id: i64,
+}

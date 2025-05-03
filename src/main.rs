@@ -6,6 +6,8 @@ mod db;
 mod handlers;
 mod models;
 mod routes;
+mod auth;
+mod auth_middleware;
 
 #[tokio::main]
 async fn main() {
