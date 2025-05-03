@@ -1,4 +1,4 @@
-use crate::models::{CreateItem, Item};
+use crate::models::{CreateItem, Item, Category};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -85,6 +85,43 @@ pub async fn update_item(
             return Err(StatusCode::NOT_FOUND);
         }
     };
+
+    if payload.name.trim().len() < 3 {
+        tracing::warn!("Invalid name: {}", payload.name);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if payload.price < 0.0 {
+        tracing::warn!("Invalid price: {}", payload.price);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if payload.quantity < 1 {
+        tracing::warn!("Invalid quantity: {}", payload.quantity);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if let Some(cat_id) = payload.category_id {
+        let category_exists = sqlx::query_scalar!(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM categories WHERE id = ?
+        ) AS exists_flag
+        "#,
+        cat_id
+    )
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check category existence: {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        if category_exists == 0 {
+            tracing::warn!("Category with ID {} does not exist", cat_id);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
 
     let name = payload.name;
     let price = payload.price;
@@ -206,6 +243,43 @@ pub async fn create_item(
 ) -> Result<Json<Item>, StatusCode> {
     tracing::info!("POST /items/create: {:?}", payload);
 
+    if payload.name.trim().len() < 3 {
+        tracing::warn!("Invalid name: {}", payload.name);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if payload.price < 0.0 {
+        tracing::warn!("Invalid price: {}", payload.price);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if payload.quantity < 1 {
+        tracing::warn!("Invalid quantity: {}", payload.quantity);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if let Some(cat_id) = payload.category_id {
+        let category_exists = sqlx::query_scalar!(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM categories WHERE id = ?
+        ) AS exists_flag
+        "#,
+        cat_id
+    )
+            .fetch_one(&pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to check category existence: {:?}", e);
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?;
+
+        if category_exists == 0 {
+            tracing::warn!("Category with ID {} does not exist", cat_id);
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
     let result = sqlx::query!(
         r#"
         INSERT INTO items (name, price, quantity, category_id)
@@ -246,8 +320,6 @@ pub async fn create_item(
 
 
 // CATEGORIES
-
-use crate::models::Category;
 
 pub async fn get_all_categories(
     State(pool): State<MySqlPool>,
