@@ -75,3 +75,10 @@ pub struct UserResponse {
     pub username: String,
     pub role_id: i64,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ItemQuery {
+    pub name: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}

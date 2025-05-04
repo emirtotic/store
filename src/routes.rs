@@ -18,7 +18,9 @@ pub fn create_routes(pool: MySqlPool) -> Router {
         .route("/items/:id", get(get_item))
         .route("/items/category/:id", get(get_items_by_category))
         .route("/categories", get(get_all_categories))
-        .route("/categories/:id", get(get_category_by_id));
+        .route("/categories/:id", get(get_category_by_id))
+        .route("/items/search", get(search_items))
+        .route("/items/search/category/:category_name", get(get_items_by_category_name));
 
     let protected_routes = Router::new()
         .route("/items/create", post(create_item))

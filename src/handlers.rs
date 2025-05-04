@@ -1,4 +1,4 @@
-use crate::models::{CreateItem, Item, Category};
+use crate::models::{CreateItem, Item, Category, ItemQuery};
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -6,6 +6,7 @@ use axum::{
 };
 use serde_json::json;
 use sqlx::MySqlPool;
+use axum::extract::Query;
 
 pub async fn get_all_items(State(pool): State<MySqlPool>) -> Result<Json<Vec<Item>>, StatusCode> {
     tracing::info!("Retrieving all items from database...");
@@ -316,6 +317,100 @@ pub async fn create_item(
         })?;
 
     Ok(Json(item))
+}
+
+pub async fn search_items(
+    State(pool): State<MySqlPool>,
+    Query(params): Query<ItemQuery>,
+) -> Result<Json<Vec<Item>>, StatusCode> {
+
+    if let Some(name) = &params.name {
+        if name.trim().len() < 2 {
+            tracing::warn!(
+            "Search term must be longer than 2 characters. Invalid search for {}",
+            name
+        );
+            return Err(StatusCode::BAD_REQUEST);
+        }
+    }
+
+    tracing::info!("GET /items?name={:?}&page={:?}&page_size={:?}", params.name, params.page, params.page_size);
+
+    let page = params.page.unwrap_or(1);
+    let page_size = params.page_size.unwrap_or(10);
+    let offset = (page - 1) * page_size;
+
+    let name_filter = params.name.unwrap_or_default();
+    let wildcard = format!("%{}%", name_filter);
+
+    let items = sqlx::query_as!(
+        Item,
+        r#"
+        SELECT id, name, price, quantity, category_id
+        FROM items
+        WHERE name LIKE ?
+        LIMIT ?
+        OFFSET ?
+        "#,
+        wildcard,
+        page_size as i64,
+        offset as i64
+    )
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(items))
+}
+
+pub async fn get_items_by_category_name(
+    Path(category_name): Path<String>,
+    State(pool): State<MySqlPool>,
+) -> Result<Json<Vec<Item>>, StatusCode> {
+    tracing::info!("GET /items/search/category/{}", category_name);
+
+    let category = sqlx::query!(
+        r#"
+        SELECT id FROM categories
+        WHERE name = ?
+        "#,
+        category_name
+    )
+        .fetch_optional(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Category check DB error: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let category = match category {
+        Some(cat) => cat,
+        None => {
+            tracing::warn!("Category '{}' not found", category_name);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+
+    let items = sqlx::query_as!(
+        Item,
+        r#"
+        SELECT i.id, i.name, i.price, i.quantity, i.category_id
+        FROM items i
+        WHERE i.category_id = ?
+        "#,
+        category.id
+    )
+        .fetch_all(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Item fetch DB error: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(items))
 }
 
 
