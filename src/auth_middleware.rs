@@ -27,7 +27,6 @@ pub async fn require_auth(
         .and_then(|h| h.to_str().ok())
         .ok_or(StatusCode::UNAUTHORIZED)?;
 
-    // Očekujemo "Bearer <token>"
     let token = auth_header.strip_prefix("Bearer ").ok_or(StatusCode::UNAUTHORIZED)?;
 
     let secret = env::var("JWT_SECRET").unwrap_or_else(|_| "secret".into());
